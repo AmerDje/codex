@@ -238,6 +238,7 @@ use codex_protocol::error::Result as CodexResult;
 #[cfg(test)]
 use codex_protocol::exec_output::StreamOutput;
 
+mod background_task;
 mod code_mode_warning;
 mod config_refresh;
 pub(crate) mod context_window;
@@ -278,6 +279,7 @@ pub(crate) mod turn_context;
 mod turn_input;
 mod turn_suspension;
 mod world_state;
+pub(crate) use self::background_task::BackgroundProcessExit;
 use self::code_mode_warning::unsupported_code_mode_warning;
 pub(crate) use self::environment::ThreadEnvironmentDefaults;
 #[cfg(test)]

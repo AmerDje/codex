@@ -187,6 +187,12 @@ pub(crate) fn spawn_exit_watcher(
         }
         let _interaction_guard = interaction_lock.lock_owned().await;
 
+        // Retain what the completion notification needs before the terminal
+        // event consumes these values.
+        let notify_session = Arc::clone(&session_ref);
+        let notify_output_buffer = Arc::clone(&output_buffer);
+        let notify_command = command.clone();
+
         let duration = Instant::now().saturating_duration_since(started_at);
         let plugin_metrics_sidecar = plugin_metrics_sidecar
             .as_ref()
@@ -238,6 +244,25 @@ pub(crate) fn spawn_exit_watcher(
                 timed_out,
             )
             .await;
+        }
+
+        // Opt-in: resume the model when a backgrounded terminal finishes while
+        // the thread is idle. No-op when the feature is disabled or a turn is
+        // active (the model observes output through `write_stdin`).
+        if notify_session.enabled(codex_features::Feature::BackgroundTaskResume)
+            && !notify_session.is_active_turn().await
+        {
+            let output = resolve_aggregated_output(&notify_output_buffer, String::new()).await;
+            notify_session
+                .notify_background_process_exited(crate::session::BackgroundProcessExit {
+                    process_id,
+                    command: notify_command,
+                    exit_code: process.exit_code(),
+                    timed_out: process.timed_out(),
+                    failure: process.failure_message(),
+                    output,
+                })
+                .await;
         }
     });
 }

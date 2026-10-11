@@ -387,6 +387,8 @@ pub enum Feature {
     Goals,
     /// Add current context-window metadata to model-visible context.
     TokenBudget,
+    /// Resume an idle thread when a backgrounded terminal process finishes.
+    BackgroundTaskResume,
     /// Enables experimental context management.
     ContextManagement,
     /// Track and report a shared token budget across a session's agent threads.
@@ -1889,6 +1891,12 @@ pub const FEATURES: &[FeatureSpec] = &[
     FeatureSpec {
         id: Feature::TokenBudget,
         key: "token_budget",
+        stage: Stage::UnderDevelopment,
+        default_enabled: false,
+    },
+    FeatureSpec {
+        id: Feature::BackgroundTaskResume,
+        key: "background_task_resume",
         stage: Stage::UnderDevelopment,
         default_enabled: false,
     },
