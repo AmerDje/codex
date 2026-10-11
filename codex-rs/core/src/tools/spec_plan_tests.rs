@@ -40,6 +40,7 @@ use pretty_assertions::assert_eq;
 use serde_json::json;
 
 use crate::WaitForEnvironmentToolConfig;
+use crate::config::CompactContextToolConfig;
 use crate::config::CurrentTimeReminderConfig;
 use crate::environment_selection::TurnEnvironmentState;
 use crate::responses_metadata::TurnToolFunctionInfo;
@@ -930,6 +931,26 @@ async fn update_plan_tool_respects_config_gate() {
     .await;
     enabled.assert_visible_contains(&["update_plan"]);
     enabled.assert_registered_contains(&["update_plan"]);
+}
+
+#[tokio::test]
+async fn compact_context_tool_respects_config_gate() {
+    let disabled = probe(|_| {}).await;
+    disabled.assert_visible_lacks(&["compact_context"]);
+    disabled.assert_registered_lacks(&["compact_context"]);
+
+    let enabled = probe(|turn| {
+        update_config(turn, |config| {
+            config.compact_context_tool = CompactContextToolConfig { enabled: true };
+        });
+    })
+    .await;
+    enabled.assert_visible_contains(&["compact_context"]);
+    enabled.assert_registered_contains(&["compact_context"]);
+    assert_eq!(
+        enabled.exposure("compact_context"),
+        ToolExposure::DirectModelOnly
+    );
 }
 
 #[tokio::test]

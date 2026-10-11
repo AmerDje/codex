@@ -1106,6 +1106,9 @@ pub struct Config {
     /// Whether to register the experimental request_user_input tool.
     pub experimental_request_user_input_enabled: bool,
 
+    /// Configuration for the opt-in agent-requested context compaction tool.
+    pub compact_context_tool: CompactContextToolConfig,
+
     /// Whether to register the update_plan tool.
     pub update_plan_enabled: bool,
 
@@ -1219,6 +1222,17 @@ impl Default for CodeModeConfig {
             direct_only_tool_namespaces: Vec::new(),
             disable_in_process_fallback: false,
         }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct CompactContextToolConfig {
+    pub enabled: bool,
+}
+
+impl Default for CompactContextToolConfig {
+    fn default() -> Self {
+        Self { enabled: false }
     }
 }
 
@@ -2762,6 +2776,20 @@ fn resolve_update_plan_enabled(config_toml: &ConfigToml) -> bool {
         .is_some_and(|config| config.enabled)
 }
 
+fn resolve_compact_context_tool_config(config_toml: &ConfigToml) -> CompactContextToolConfig {
+    let Some(config) = config_toml
+        .tools
+        .as_ref()
+        .and_then(|tools| tools.compact_context.as_ref())
+    else {
+        return CompactContextToolConfig::default();
+    };
+
+    CompactContextToolConfig {
+        enabled: config.enabled,
+    }
+}
+
 fn resolve_feature_enabled(feature: Option<&codex_config::config_toml::FeatureToggleToml>) -> bool {
     feature.and_then(|feature| feature.enabled).unwrap_or(true)
 }
@@ -3827,6 +3855,7 @@ impl Config {
         let web_search_config = resolve_web_search_config(&cfg);
         let experimental_request_user_input_enabled =
             resolve_experimental_request_user_input_enabled(&cfg);
+        let compact_context_tool = resolve_compact_context_tool_config(&cfg);
         let update_plan_enabled = resolve_update_plan_enabled(&cfg);
         let tool_registry = ToolRegistryConfig {
             error_on_tool_collisions: cfg
@@ -4526,6 +4555,7 @@ impl Config {
             web_search_mode: constrained_web_search_mode.value,
             web_search_config,
             experimental_request_user_input_enabled,
+            compact_context_tool,
             update_plan_enabled,
             tool_registry,
             code_mode,

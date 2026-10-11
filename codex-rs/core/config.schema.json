@@ -629,6 +629,16 @@
       },
       "type": "object"
     },
+    "CompactContextToolToml": {
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
     "ComputerUseConfigToml": {
       "additionalProperties": false,
       "properties": {
@@ -4563,6 +4573,9 @@
     "ToolsToml": {
       "additionalProperties": false,
       "properties": {
+        "compact_context": {
+          "$ref": "#/definitions/CompactContextToolToml"
+        },
         "experimental_request_user_input": {
           "$ref": "#/definitions/ExperimentalRequestUserInput"
         },

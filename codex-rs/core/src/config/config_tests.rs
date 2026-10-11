@@ -19,6 +19,7 @@ use codex_config::Sourced;
 use codex_config::config_toml::AgentRoleToml;
 use codex_config::config_toml::AgentsToml;
 use codex_config::config_toml::AutoReviewToml;
+use codex_config::config_toml::CompactContextToolToml;
 use codex_config::config_toml::ConfigToml;
 use codex_config::config_toml::ExperimentalRequestUserInput;
 use codex_config::config_toml::ProjectConfig;
@@ -461,6 +462,7 @@ web_search = true
             web_search: None,
             experimental_request_user_input: None,
             update_plan: None,
+            compact_context: None,
         })
     );
 }
@@ -481,6 +483,7 @@ web_search = false
             web_search: None,
             experimental_request_user_input: None,
             update_plan: None,
+            compact_context: None,
         })
     );
 }
@@ -500,6 +503,7 @@ fn tools_experimental_request_user_input_defaults_to_enabled() {
             web_search: None,
             experimental_request_user_input: Some(ExperimentalRequestUserInput { enabled: true }),
             update_plan: None,
+            compact_context: None,
         })
     );
 }
@@ -520,6 +524,7 @@ enabled = false
             web_search: None,
             experimental_request_user_input: Some(ExperimentalRequestUserInput { enabled: false }),
             update_plan: None,
+            compact_context: None,
         })
     );
 }
@@ -535,6 +540,7 @@ async fn load_config_resolves_experimental_request_user_input_enabled() -> std::
                     enabled: false,
                 }),
                 update_plan: None,
+                compact_context: None,
             }),
             ..ConfigToml::default()
         },
@@ -544,6 +550,28 @@ async fn load_config_resolves_experimental_request_user_input_enabled() -> std::
     .await?;
 
     assert!(!config.experimental_request_user_input_enabled);
+    Ok(())
+}
+
+#[tokio::test]
+async fn load_config_resolves_compact_context_tool_config() -> std::io::Result<()> {
+    let codex_home = tempdir()?;
+    let config = Config::load_from_base_config_with_overrides(
+        ConfigToml {
+            tools: Some(ToolsToml {
+                web_search: None,
+                experimental_request_user_input: None,
+                update_plan: None,
+                compact_context: Some(CompactContextToolToml { enabled: true }),
+            }),
+            ..ConfigToml::default()
+        },
+        ConfigOverrides::default(),
+        codex_home.abs(),
+    )
+    .await?;
+
+    assert!(config.compact_context_tool.enabled);
     Ok(())
 }
 

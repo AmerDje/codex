@@ -351,6 +351,7 @@ pub(crate) async fn run_turn(
             &mut client_session,
             CompactionReason::ContextLimit,
             CompactionPhase::PreTurn,
+            /*instruction*/ None,
         )
         .await?;
         sess.record_context_updates_and_set_reference_context_item(first_step_context.as_ref())
@@ -606,9 +607,32 @@ pub(crate) async fn run_turn(
                     );
                 }
 
+                let agent_compaction_request = if needs_follow_up {
+                    sess.take_context_compaction_request().await
+                } else {
+                    None
+                };
                 let should_roll_over = needs_follow_up
-                    && (sess.take_new_context_window_request().await || token_limit_reached);
+                    && (sess.take_new_context_window_request().await
+                        || agent_compaction_request.is_some()
+                        || token_limit_reached);
                 let allow_auto_compact_fallback = !should_roll_over && !token_limit_reached;
+                let compaction_reason = if agent_compaction_request.is_some() {
+                    CompactionReason::AgentRequested
+                } else {
+                    CompactionReason::ContextLimit
+                };
+                let compaction_instruction = agent_compaction_request
+                    .as_ref()
+                    .and_then(|request| request.instruction.as_deref());
+                if let Some(request) = agent_compaction_request.as_ref() {
+                    trace!(
+                        turn_id = %turn_context.sub_id,
+                        reason = ?request.reason,
+                        has_instruction = request.instruction.is_some(),
+                        "agent requested context compaction"
+                    );
+                }
                 super::token_budget::maybe_record(
                     sess.as_ref(),
                     turn_context.as_ref(),
@@ -624,8 +648,9 @@ pub(crate) async fn run_turn(
                         Arc::clone(&step_context),
                         Arc::clone(&step_context),
                         &mut client_session,
-                        CompactionReason::ContextLimit,
+                        compaction_reason,
                         CompactionPhase::MidTurn,
+                        compaction_instruction,
                     )
                     .await
                     {
@@ -734,6 +759,7 @@ pub(crate) async fn run_turn(
                             &mut client_session,
                             CompactionReason::ContextLimit,
                             CompactionPhase::PostTurn,
+                            /*instruction*/ None,
                         )
                         .await
                     {
@@ -784,6 +810,7 @@ pub(crate) async fn run_turn(
                     &mut client_session,
                     CompactionReason::ContextLimit,
                     CompactionPhase::MidTurn,
+                    /*instruction*/ None,
                 )
                 .await?;
                 can_drain_pending_input = false;
@@ -1325,6 +1352,7 @@ async fn run_pre_sampling_compact(
             client_session,
             CompactionReason::ContextLimit,
             CompactionPhase::PreTurn,
+            /*instruction*/ None,
         )
         .await?;
     }
@@ -1421,6 +1449,7 @@ async fn maybe_run_previous_model_inline_compact(
         client_session,
         reason,
         CompactionPhase::PreTurn,
+        /*instruction*/ None,
     )
     .await?;
     Ok(())
@@ -1439,6 +1468,7 @@ async fn run_auto_compact(
     client_session: &mut ModelClientSession,
     reason: CompactionReason,
     phase: CompactionPhase,
+    instruction: Option<&str>,
 ) -> CodexResult<()> {
     let turn_context = &step_context.turn;
     if matches!(phase, CompactionPhase::PreTurn)
@@ -1485,6 +1515,7 @@ async fn run_auto_compact(
                 world_state,
                 reason,
                 phase,
+                instruction,
             )
             .await?;
         }
@@ -1501,6 +1532,7 @@ async fn run_auto_compact(
                 world_state,
                 reason,
                 phase,
+                instruction,
             )
             .await?;
         }

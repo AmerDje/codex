@@ -39,6 +39,7 @@ pub(super) async fn run_remote_compact_v2_attempt(
     compaction_trace: &CompactionTraceContext,
     compaction_metadata: CompactionTurnMetadata,
     analytics_details: &mut CompactionAnalyticsDetails,
+    instruction: Option<&str>,
 ) -> CodexResult<RemoteCompactV2Attempt> {
     let turn_context = &step_context.turn;
     let mut history = sess.clone_history().await;
@@ -53,7 +54,10 @@ pub(super) async fn run_remote_compact_v2_attempt(
             provenance: None,
         }
     } else {
-        sess.get_prompt_base_instructions().await
+        crate::compact::base_instructions_with_compaction_instruction(
+            sess.get_prompt_base_instructions().await,
+            instruction,
+        )
     };
     let (rewritten_outputs, estimated_deleted_tokens) =
         trim_function_call_history_to_fit_context_window(

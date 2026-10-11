@@ -4687,6 +4687,22 @@ impl Session {
         state.take_new_context_window_request()
     }
 
+    /// Queues a model-requested context compaction for the next safe continuation point.
+    pub(crate) async fn request_context_compaction(
+        &self,
+        request: crate::compact::ContextCompactionRequest,
+    ) -> bool {
+        let mut state = self.state.lock().await;
+        state.request_context_compaction(request)
+    }
+
+    pub(crate) async fn take_context_compaction_request(
+        &self,
+    ) -> Option<crate::compact::ContextCompactionRequest> {
+        let mut state = self.state.lock().await;
+        state.take_context_compaction_request()
+    }
+
     pub(crate) async fn start_new_context_window(
         &self,
         step_context: &StepContext,

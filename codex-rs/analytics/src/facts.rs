@@ -460,6 +460,7 @@ pub enum CompactionTrigger {
 #[serde(rename_all = "snake_case")]
 pub enum CompactionReason {
     UserRequested,
+    AgentRequested,
     ContextLimit,
     ModelDownshift,
     CompHashChanged,

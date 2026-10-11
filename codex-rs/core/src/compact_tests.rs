@@ -758,3 +758,29 @@ fn assemble_compaction_history_keeps_compaction_last() {
     ];
     assert_eq!(refreshed, expected);
 }
+
+#[test]
+fn compaction_prompt_appends_instruction_only_when_present() {
+    assert_eq!(compaction_prompt_with_instruction("BASE", None), "BASE");
+    assert_eq!(
+        compaction_prompt_with_instruction("BASE", Some("   ")),
+        "BASE"
+    );
+    let prompt = compaction_prompt_with_instruction("BASE", Some("  keep the API shape  "));
+    assert!(prompt.starts_with(
+        "BASE\n\nAdditional compaction instruction:\nkeep the API shape\n\nUse this additional instruction"
+    ));
+}
+
+#[test]
+fn normalize_compaction_instruction_drops_blank_values() {
+    assert_eq!(normalize_compaction_instruction(None), None);
+    assert_eq!(
+        normalize_compaction_instruction(Some("   ".to_string())),
+        None
+    );
+    assert_eq!(
+        normalize_compaction_instruction(Some("  hi  ".to_string())),
+        Some("hi".to_string())
+    );
+}

@@ -81,6 +81,7 @@ const MAX_RETAINED_AGENT_MESSAGE_TOKENS: i64 = 10_000;
 // retry budget smaller than the general Responses stream retry budget.
 const MAX_REMOTE_COMPACTION_V2_STREAM_RETRIES: u64 = 2;
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn run_inline_remote_auto_compact_task(
     sess: Arc<Session>,
     step_context: Arc<StepContext>,
@@ -89,6 +90,7 @@ pub(crate) async fn run_inline_remote_auto_compact_task(
     world_state: Arc<WorldState>,
     reason: CompactionReason,
     phase: CompactionPhase,
+    instruction: Option<&str>,
 ) -> CodexResult<()> {
     let compaction_metadata = CompactionTurnMetadata::new(
         CompactionTrigger::Auto,
@@ -103,6 +105,7 @@ pub(crate) async fn run_inline_remote_auto_compact_task(
         Some(client_session),
         world_state,
         compaction_metadata,
+        instruction,
     )
     .await
 }
@@ -125,6 +128,7 @@ pub(crate) async fn run_remote_compact_task(
         /*client_session*/ None,
         world_state,
         compaction_metadata,
+        /*instruction*/ None,
     )
     .await
 }
@@ -136,6 +140,7 @@ async fn run_remote_compact_task_inner(
     client_session: Option<&mut ModelClientSession>,
     world_state: Arc<WorldState>,
     compaction_metadata: CompactionTurnMetadata,
+    instruction: Option<&str>,
 ) -> CodexResult<()> {
     let turn_context = &step_context.turn;
     let trigger = compaction_metadata.trigger();
@@ -179,6 +184,7 @@ async fn run_remote_compact_task_inner(
         world_state,
         compaction_metadata,
         &mut analytics_details,
+        instruction,
     )
     .await;
     let status = compaction_status_from_result(&result);
@@ -217,6 +223,7 @@ async fn run_remote_compact_task_inner(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn run_remote_compact_task_inner_impl(
     sess: &Arc<Session>,
     step_context: &Arc<StepContext>,
@@ -225,6 +232,7 @@ async fn run_remote_compact_task_inner_impl(
     world_state: Arc<WorldState>,
     compaction_metadata: CompactionTurnMetadata,
     analytics_details: &mut CompactionAnalyticsDetails,
+    instruction: Option<&str>,
 ) -> CodexResult<()> {
     let turn_context = &step_context.turn;
     let context_compaction_item = ContextCompactionItem::new();
@@ -246,6 +254,7 @@ async fn run_remote_compact_task_inner_impl(
         &compaction_trace,
         compaction_metadata,
         analytics_details,
+        instruction,
     )
     .await;
     let (attempt, compaction_turn_context) = match attempt {
@@ -271,6 +280,7 @@ async fn run_remote_compact_task_inner_impl(
                 &fallback_compaction_trace,
                 compaction_metadata,
                 analytics_details,
+                instruction,
             )
             .await;
             record_model_fallback(

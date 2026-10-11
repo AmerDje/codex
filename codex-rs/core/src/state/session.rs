@@ -12,6 +12,7 @@ use super::auto_compact_window::AutoCompactWindow;
 use super::auto_compact_window::AutoCompactWindowIds;
 use super::auto_compact_window::AutoCompactWindowSnapshot;
 use crate::TurnStartOptions;
+use crate::compact::ContextCompactionRequest;
 use crate::context_manager::ContextManager;
 use crate::context_manager::HistoryReplacement;
 use crate::session::PreviousTurnSettings;
@@ -91,6 +92,8 @@ pub(crate) struct SessionState {
     pub(crate) turn_attribution: Option<TurnAttribution>,
     /// Runtime accounting state for the active auto-compaction window.
     auto_compact_window: AutoCompactWindow,
+    /// One-shot model-requested context compaction to run at the next safe continuation point.
+    pending_context_compaction_request: Option<ContextCompactionRequest>,
     /// Original request effort for the current model while configuration updates remain active.
     pub(crate) reasoning_effort_pin: ReasoningEffortPin,
     /// Set under the state lock before shutdown takes the last warmup handle.
@@ -136,6 +139,7 @@ impl SessionState {
             last_started_turn_id: None,
             turn_attribution: None,
             auto_compact_window: AutoCompactWindow::new_with_ids(auto_compact_window_ids),
+            pending_context_compaction_request: None,
             reasoning_effort_pin: ReasoningEffortPin::Unset,
             shutting_down: false,
             startup_prewarm: None,
@@ -334,6 +338,19 @@ impl SessionState {
 
     pub(crate) fn take_new_context_window_request(&mut self) -> bool {
         self.auto_compact_window.take_new_context_window_request()
+    }
+
+    /// Queues a model-requested compaction. Returns `false` when one is already pending.
+    pub(crate) fn request_context_compaction(&mut self, request: ContextCompactionRequest) -> bool {
+        if self.pending_context_compaction_request.is_some() {
+            return false;
+        }
+        self.pending_context_compaction_request = Some(request);
+        true
+    }
+
+    pub(crate) fn take_context_compaction_request(&mut self) -> Option<ContextCompactionRequest> {
+        self.pending_context_compaction_request.take()
     }
 
     pub(crate) fn start_new_context_window(&mut self) -> (u64, AutoCompactWindowIds) {
