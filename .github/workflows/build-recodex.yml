@@ -1,0 +1,66 @@
+name: build-recodex
+
+# Builds the Codex CLI from this fork/branch and uploads the Windows binaries
+# as an artifact. Intentionally triggered only on the dedicated `recodex`
+# branch (and manual dispatch) so it does not collide with upstream CI.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - recodex
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    name: Build codex (Windows x64)
+    runs-on: windows-latest
+    timeout-minutes: 150
+    defaults:
+      run:
+        working-directory: codex-rs
+    env:
+      # Lean release profile so the build fits GitHub-hosted runner RAM/disk.
+      CARGO_PROFILE_RELEASE_LTO: "false"
+      CARGO_PROFILE_RELEASE_DEBUG: "0"
+      CARGO_PROFILE_RELEASE_STRIP: "symbols"
+      CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "16"
+      CARGO_PROFILE_RELEASE_OPT_LEVEL: "1"
+      CARGO_BUILD_JOBS: "2"
+      CARGO_INCREMENTAL: "0"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust 1.95.0
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.95.0"
+
+      - name: Disk space (before)
+        run: Get-PSDrive C | Select-Object Free,Used
+
+      - name: Build codex binary
+        run: cargo build --release --bin codex
+
+      - name: Disk space (after)
+        run: Get-PSDrive C | Select-Object Free,Used
+
+      - name: Upload binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: codex-windows-x64
+          path: codex-rs/target/release/codex.exe
+          if-no-files-found: error
+
+      # Publish a public release asset so the binary can be fetched without
+      # authentication (helpful for scripted download).
+      - name: Publish release asset
+        continue-on-error: true
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: recodex-${{ github.run_number }}
+          name: recodex build ${{ github.run_number }}
+          files: codex-rs/target/release/codex.exe
+          prerelease: true
